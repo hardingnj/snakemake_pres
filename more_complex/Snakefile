@@ -1,0 +1,81 @@
+configfile: "config.yaml"
+SAMPLES = config["samples"]
+
+rule draw_tree:
+    input:
+        txt="output/results.dist"
+    output:
+        png="output/results.png"
+    run:
+        import pandas as pd
+        import numpy as np
+        import matplotlib.pyplot as plt
+        from scipy.cluster.hierarchy import dendrogram, linkage        
+
+        dist = pd.read_table(input.txt, index_col=0, header=None, comment="#")
+        # refer to variables defined outside
+        dist.columns = SAMPLES
+        dist.index = SAMPLES
+        
+        d = np.array(dist)
+        z = linkage(d, method="complete")
+        
+        r = dendrogram(
+            z, labels=SAMPLES, count_sort=True, 
+            color_threshold=0, 
+            above_threshold_color='k')
+        plt.savefig(output.png)
+
+
+rule mash_dist:
+    input:
+        mash="output/results.msh"
+    output:
+        txt="output/results.dist"
+    shell:
+        "mash dist -t {input.mash} {input.mash} > {output.txt}"
+
+
+rule mash_paste:
+    input:
+        expand("output/{sample}_{treatment}.msh", sample=SAMPLES, treatment=["Rep1"])
+    output:
+        mash="output/results.msh"
+    params:
+        mash="output/results"
+    wildcard_constraints:
+        sample="\D\d\D?",
+        treatment="\D{3}\d"
+    shell:
+        "mash paste {params.mash} {input}"
+        
+
+rule mash_sketch:
+    input:
+        bam="../data/wgEncodeUwRepliSeqBg02es{sid}Aln{treatment}.bam",
+        bai="../data/wgEncodeUwRepliSeqBg02es{sid}Aln{treatment}.bam.bai"
+    output:
+        mash="output/{sid}_{treatment}.msh"
+    wildcard_constraints:
+        sid="\D\d\D?",
+        treatment="\D{3}\d"
+    params:
+        mash="output/{sid}_{treatment}",
+        k=21,
+        m=2,
+        g=1000000,
+        s=1000
+    shell:
+        "samtools fasta {input.bam} | "
+        "mash sketch -o {params.mash} "
+        "-m {params.m} -k {params.k} -g {params.g} -s {params.s} -"
+
+rule download:
+    output:
+        file="../data/{fname}"
+    shell:
+        "curl http://hgdownload.cse.ucsc.edu/goldenPath/hg19/encodeDCC/wgEncodeUwRepliSeq/{wildcards.fname} > {output.file}"
+
+rule cleardata:
+    shell:
+        "rm ../data/*"

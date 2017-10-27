@@ -1,0 +1,48 @@
+SAMPLES=["G1b", "G2", "S1", "S2"]
+
+rule mash_dist:
+    input:
+        mash="output/results.msh"
+    output:
+        txt="output/results.dist"
+    shell:
+        "mash dist -t {input.mash} {input.mash} > {output.txt}"
+
+
+rule mash_paste:
+    input:
+        expand("output/{sample}.msh", sample=SAMPLES)
+    output:
+        mash="output/results.msh"
+    params:
+        mash="output/results"
+    shell:
+        "mash paste {params.mash} {input}"
+        
+
+rule mash_sketch:
+    input:
+        bam="../data/wgEncodeUwRepliSeqBg02es{sid}AlnRep1.bam",
+        bai="../data/wgEncodeUwRepliSeqBg02es{sid}AlnRep1.bam.bai"
+    output:
+        mash="output/{sid}.msh"
+    params:
+        mash="output/{sid}",
+        k=21,
+        m=2,
+        g=1000000,
+        s=1000
+    shell:
+        "samtools fasta {input.bam} | "
+        "mash sketch -o {params.mash} "
+        "-m {params.m} -k {params.k} -g {params.g} -s {params.s} -"
+
+rule download:
+    output:
+        file="../data/{fname}"
+    shell:
+        "curl http://hgdownload.cse.ucsc.edu/goldenPath/hg19/encodeDCC/wgEncodeUwRepliSeq/{wildcards.fname} > {output.file}"
+
+rule cleardata:
+    shell:
+        "rm ../data/*"
