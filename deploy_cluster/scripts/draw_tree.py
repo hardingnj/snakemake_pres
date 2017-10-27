@@ -2,13 +2,14 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.cluster.hierarchy import dendrogram, linkage        
+from scipy.spatial.distance import squareform
 
-dist = pd.read_table(snakemake.input.txt, index_col=0, header=None, comment="#")
+dist = pd.read_table(input.txt, index_col=0, header=None, comment="#")
 # refer to variables defined outside
-dist.columns = snakemake.params.samples
-dist.index = snakemake.params.samples
-
-d = np.array(dist)
+dist.columns = SAMPLES
+dist.index = SAMPLES
+        
+d = squareform(np.array(dist))
 z = linkage(d, method="complete")
 
 r = dendrogram(
